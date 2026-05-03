@@ -58,7 +58,7 @@ Example:
 
 ### 4. Update Provider File
 
--   Fork your repository\
+-   Fork this repository\
 -   Navigate to:
 
 ```{=html}
