@@ -92,6 +92,7 @@ Your private cookie is now ready to use.
 ## ⚠️ Notes
 
 -   Ensure both devices are on the same network\
+-   You can also install app on Android TV.
 -   Keep cookies private\
 -   Server must be running\
 -   IP may change on reconnect
