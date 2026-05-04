@@ -1,52 +1,16 @@
 /**
- * GramCinema (Hashhackers) - Private Local Auth Version
- * Filename: providers/gramcinema.js
+ * GramCinema - Hardcoded Test Version
+ * Purpose: Bypass local server to verify API connectivity
  */
 
 const CONFIG = {
-    LOCAL_COOKIE_URL: "http://192.168.1.3:8080/cookie.txt",
+    // PASTE YOUR ACTUAL UI TOKEN HERE BETWEEN THE QUOTES
+    TEST_TOKEN: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NzU1OTg3NTAsIm5iZiI6MTc3NTU5ODc1MCwiZXhwIjoxODA2NzAyNzcwLCJkYXRhIjp7InVpZCI6MTQyODU5MSwidG9rZW4iOiIzMTE0YTM5ZWUzODQ1YmNiMmRlMjBmOTc1MDkyM2NlNyJ9fQ.c08D__oKsN3yBjdmcQIWZ8TGneuPsb81yZeR1-8vxDg", 
+    
     TMDB_API_KEY: "d131017ccc6e5462a81c9304d21476de",
     USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 };
 
-/**
- * Fetches your private Febbox/Showbox UI token from your local HTTP server.
- */
-async function getLocalToken() {
-    const url = CONFIG.LOCAL_COOKIE_URL + "?cache=" + Date.now();
-    console.log("[GramCinema] Attempting to load cookie from: " + url);
-
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 second limit
-
-        const response = await fetch(url, { 
-            signal: controller.signal,
-            headers: { 'Accept': 'text/plain' },
-            mode: 'cors' 
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) throw new Error("Server returned status: " + response.status);
-        
-        const token = await response.text();
-        const cleanToken = token.trim();
-
-        if (!cleanToken) throw new Error("cookie.txt is empty!");
-
-        console.log("[GramCinema] Token loaded successfully.");
-        return cleanToken;
-    } catch (err) {
-        console.error("[GramCinema] Auth Error: " + err.message);
-        console.log("[GramCinema] Ensure your local server is running with --cors at " + CONFIG.LOCAL_COOKIE_URL);
-        return null;
-    }
-}
-
-/**
- * Helper to handle JSON fetches with consistent headers.
- */
 async function fetchJson(url, options = {}) {
     const defaultHeaders = {
         "User-Agent": CONFIG.USER_AGENT,
@@ -60,38 +24,35 @@ async function fetchJson(url, options = {}) {
         });
 
         if (!res.ok) {
-            console.error(`[GramCinema] HTTP Error: ${res.status} for ${url}`);
+            console.error(`[Test] HTTP Error: ${res.status} for ${url}`);
             return null;
         }
         return await res.json();
     } catch (err) {
-        console.error(`[GramCinema] Fetch failed for ${url}:`, err.message);
+        console.error(`[Test] Network failure:`, err.message);
         return null;
     }
 }
 
-/**
- * Main Scraper Function
- */
 async function getStreams(tmdbId, mediaType) {
-    console.log(`[GramCinema] Searching for: ${tmdbId} (${mediaType})`);
+    console.log("[Test] Starting search with hardcoded token...");
 
-    // 1. Get the private token first
-    const token = await getLocalToken();
-    if (!token) return [];
+    if (!CONFIG.TEST_TOKEN || CONFIG.TEST_TOKEN.includes("PASTE_YOUR")) {
+        console.error("[Test] You forgot to paste your token into the code!");
+        return [];
+    }
 
-    // 2. Fetch Metadata from TMDB
+    // 1. Get Metadata
     const isImdb = String(tmdbId).startsWith("tt");
     const tmdbUrl = isImdb 
         ? `https://api.themoviedb.org/3/find/${tmdbId}?api_key=${CONFIG.TMDB_API_KEY}&external_source=imdb_id`
         : `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${CONFIG.TMDB_API_KEY}`;
 
     const tmdbData = await fetchJson(tmdbUrl);
-    if (!tmdbData) return [];
-
-    const movieData = isImdb ? tmdbData.movie_results?.[0] : tmdbData;
+    const movieData = isImdb ? tmdbData?.movie_results?.[0] : tmdbData;
+    
     if (!movieData) {
-        console.error("[GramCinema] No movie metadata found.");
+        console.error("[Test] TMDB metadata failed.");
         return [];
     }
 
@@ -99,50 +60,41 @@ async function getStreams(tmdbId, mediaType) {
     const year = (movieData.release_date || "").split('-')[0];
     const query = encodeURIComponent(`${title} ${year}`.trim());
 
-    // 3. Search the Hashhackers/Showbox Database
+    // 2. Search Hashhackers
     const HASH_HEADERS = {
-        "Authorization": `Bearer ${token}`,
+        "Authorization": "Bearer " + CONFIG.TEST_TOKEN,
         "Origin": "https://bollywood.eu.org",
         "Referer": "https://bollywood.eu.org/"
     };
 
     const searchUrl = `https://tga-hd.api.hashhackers.com/mix_media_files/search?q=${query}&page=1`;
+    console.log("[Test] Searching: " + searchUrl);
+    
     const searchData = await fetchJson(searchUrl, { headers: HASH_HEADERS });
 
     if (!searchData || !searchData.files || searchData.files.length === 0) {
-        console.log("[GramCinema] No files found in database.");
+        console.log("[Test] No results found. Either the movie is missing or the token is invalid.");
         return [];
     }
 
-    // 4. Generate direct stream links for top results
-    const topFiles = searchData.files.slice(0, 5);
-    const streamPromises = topFiles.map(async (file) => {
+    // 3. Link Gen
+    const results = [];
+    for (const file of searchData.files.slice(0, 3)) {
         const genUrl = `https://tga-hd.api.hashhackers.com/genLink?type=mix_media&id=${file.id}`;
         const linkData = await fetchJson(genUrl, { headers: HASH_HEADERS });
 
-        if (linkData && linkData.success && linkData.url) {
-            let quality = "Auto";
-            const fn = file.file_name.toLowerCase();
-            if (fn.includes("2160p") || fn.includes("4k")) quality = "4K";
-            else if (fn.includes("1080p")) quality = "1080p";
-            else if (fn.includes("720p")) quality = "720p";
-
-            return {
-                name: "GramCinema",
-                title: file.file_name.substring(0, 50) + (file.file_name.length > 50 ? "..." : ""),
+        if (linkData?.success && linkData.url) {
+            results.push({
+                name: "GramCinema (Test)",
+                title: file.file_name,
                 url: linkData.url,
-                quality: quality
-            };
+                quality: file.file_name.includes("1080") ? "1080p" : "720p"
+            });
         }
-        return null;
-    });
+    }
 
-    const results = await Promise.all(streamPromises);
-    const finalStreams = results.filter(r => r !== null);
-    
-    console.log(`[GramCinema] Found ${finalStreams.length} active streams.`);
-    return finalStreams;
+    console.log(`[Test] Success! Found ${results.length} streams.`);
+    return results;
 }
 
-// Export for the app
 module.exports = { getStreams };
