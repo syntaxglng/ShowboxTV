@@ -1,48 +1,25 @@
 /**
- * GramCinema - Hardcoded Test Version
- * Purpose: Bypass local server to verify API connectivity
+ * GramCinema - Final Corrected Version
  */
 
 const CONFIG = {
-    // PASTE YOUR ACTUAL UI TOKEN HERE BETWEEN THE QUOTES
-    TEST_TOKEN: "", 
-    
-    TMDB_API_KEY: "d131017ccc6e5462a81c9304d21476de",
-    USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    // PASTE YOUR UI TOKEN HERE
+    UI_TOKEN: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NzU1OTg3NTAsIm5iZiI6MTc3NTU5ODc1MCwiZXhwIjoxODA2NzAyNzcwLCJkYXRhIjp7InVpZCI6MTQyODU5MSwidG9rZW4iOiIzMTE0YTM5ZWUzODQ1YmNiMmRlMjBmOTc1MDkyM2NlNyJ9fQ.c08D__oKsN3yBjdmcQIWZ8TGneuPsb81yZeR1-8vxDg", 
+    TMDB_API_KEY: "d131017ccc6e5462a81c9304d21476de"
 };
 
 async function fetchJson(url, options = {}) {
-    const defaultHeaders = {
-        "User-Agent": CONFIG.USER_AGENT,
-        "Accept": "application/json"
-    };
-
     try {
-        const res = await fetch(url, {
-            ...options,
-            headers: { ...defaultHeaders, ...options.headers }
-        });
-
-        if (!res.ok) {
-            console.error(`[Test] HTTP Error: ${res.status} for ${url}`);
-            return null;
-        }
+        const res = await fetch(url, options);
+        if (!res.ok) return null;
         return await res.json();
     } catch (err) {
-        console.error(`[Test] Network failure:`, err.message);
         return null;
     }
 }
 
 async function getStreams(tmdbId, mediaType) {
-    console.log("[Test] Starting search with hardcoded token...");
-
-    if (!CONFIG.TEST_TOKEN || CONFIG.TEST_TOKEN.includes("PASTE_YOUR")) {
-        console.error("[Test] You forgot to paste your token into the code!");
-        return [];
-    }
-
-    // 1. Get Metadata
+    // 1. Metadata Fetch
     const isImdb = String(tmdbId).startsWith("tt");
     const tmdbUrl = isImdb 
         ? `https://api.themoviedb.org/3/find/${tmdbId}?api_key=${CONFIG.TMDB_API_KEY}&external_source=imdb_id`
@@ -50,42 +27,44 @@ async function getStreams(tmdbId, mediaType) {
 
     const tmdbData = await fetchJson(tmdbUrl);
     const movieData = isImdb ? tmdbData?.movie_results?.[0] : tmdbData;
-    
-    if (!movieData) {
-        console.error("[Test] TMDB metadata failed.");
-        return [];
-    }
+    if (!movieData) return [];
 
     const title = movieData.title || movieData.name;
     const year = (movieData.release_date || "").split('-')[0];
-    const query = encodeURIComponent(`${title} ${year}`.trim());
+    // Clean query: remove special characters that might trip up the search
+    const cleanTitle = title.replace(/[^a-zA-Z0-9 ]/g, "");
+    const query = encodeURIComponent(`${cleanTitle} ${year}`.trim());
 
-    // 2. Search Hashhackers
+    // 2. The "Magic" Headers
+    // These specific headers help bypass the "empty results" block
     const HASH_HEADERS = {
-        "Authorization": "Bearer " + CONFIG.TEST_TOKEN,
-        "Origin": "https://bollywood.eu.org",
-        "Referer": "https://bollywood.eu.org/"
+        "Authorization": "Bearer " + CONFIG.UI_TOKEN,
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Platform": "android", // Spoofing the app platform
+        "X-App-Version": "34",
+        "Origin": "https://tga-hd.api.hashhackers.com",
+        "Referer": "https://tga-hd.api.hashhackers.com/"
     };
 
+    // 3. Search Request
     const searchUrl = `https://tga-hd.api.hashhackers.com/mix_media_files/search?q=${query}&page=1`;
-    console.log("[Test] Searching: " + searchUrl);
-    
     const searchData = await fetchJson(searchUrl, { headers: HASH_HEADERS });
 
     if (!searchData || !searchData.files || searchData.files.length === 0) {
-        console.log("[Test] No results found. Either the movie is missing or the token is invalid.");
+        console.log("[GramCinema] No files found. Your token might be expired or the API is blocking this request.");
         return [];
     }
 
-    // 3. Link Gen
-    const results = [];
-    for (const file of searchData.files.slice(0, 3)) {
+    // 4. Link Generation
+    const streamResults = [];
+    for (const file of searchData.files.slice(0, 5)) {
         const genUrl = `https://tga-hd.api.hashhackers.com/genLink?type=mix_media&id=${file.id}`;
         const linkData = await fetchJson(genUrl, { headers: HASH_HEADERS });
 
         if (linkData?.success && linkData.url) {
-            results.push({
-                name: "GramCinema (Test)",
+            streamResults.push({
+                name: "GramCinema",
                 title: file.file_name,
                 url: linkData.url,
                 quality: file.file_name.includes("1080") ? "1080p" : "720p"
@@ -93,8 +72,7 @@ async function getStreams(tmdbId, mediaType) {
         }
     }
 
-    console.log(`[Test] Success! Found ${results.length} streams.`);
-    return results;
+    return streamResults;
 }
 
 module.exports = { getStreams };
