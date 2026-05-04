@@ -3,7 +3,7 @@
  */
 
 // 1. Configuration - Set your local IP here
-const LOCAL_COOKIE_URL = "http://192.168.1.176:8080/cookie.txt";
+const LOCAL_COOKIE_URL = "http://192.168.1.3:8080/cookie.txt";
 const TMDB_KEY = "d131017ccc6e5462a81c9304d21476de";
 
 async function getLocalToken() {
