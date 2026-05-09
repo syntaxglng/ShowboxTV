@@ -1,5 +1,5 @@
 var TMDB_KEY = '439c478a771f35c05022f9feabcca01c';
-var SB_BASE = 'https://febapi.nuvioapp.space/api/media';
+var SB_BASE = 'https://mbpapi.shegu.net/api/api_client/index/';
 
 // IMPORTANT: Set this to your Phone's Local IP address
 var LOCAL_COOKIE_URL = "http://192.168.1.176:8080/cookie.txt";
