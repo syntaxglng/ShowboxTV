@@ -1,228 +1,405 @@
-// ShowBox Scraper for Nuvio Local Scrapers
-// React Native compatible version - Promise-based approach
+/**
+ * SuperStream Provider for Nuvio App
+ * 
+ * Author: Xyr0nX/Antonio Ante
+ * GitHub: https://github.com/Xyr0nX
+ * 
+ * Use Febbox Token for Streaming.
+ */
 
-// TMDB API Configuration
-const TMDB_API_KEY = '439c478a771f35c05022f9feabcca01c';
-const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+// ─── CONFIGURATION ──────────────────────────────────────────────────────────────
+var TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
 
-// ShowBox API Configuration
-const SHOWBOX_API_BASE = 'https://febapi.nuvioapp.space/api/media';
+// SECURE TOKEN: Left empty - automatically fetched from local server (Simple HTTP Server)
+// Do not fill this! Store your token in cookie.txt file on your Android server.
+var FEBBOX_TOKEN = "";
 
-// Your Private Cookie Server
-const LOCAL_COOKIE_URL = "http://192.168.1.176:8080/cookie2.txt";
+// ─── LOCAL SERVER CONFIGURATION ─────────────────────────────────────────────────
+// Replace this IP with your Android phone's local IP running Simple HTTP Server
+// How to check IP: Settings -> WiFi -> network name -> IP Address
+var LOCAL_TOKEN_URL = "http://192.168.1.176:8080/cookie_show.txt";
 
-// Working headers for ShowBox API
-const WORKING_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-    'Accept': 'application/json',
-    'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
-    'Accept-Encoding': 'gzip, deflate, br, zstd',
-    'Content-Type': 'application/json'
+var FOURTH_API = "https://showbox.media";
+var THIRD_API  = "https://www.febbox.com";
+var TMDB_BASE  = "https://api.themoviedb.org/3";
+
+// ─── HEADERS ──────────────────────────────────────────────────────────────────
+var BASE_HEADERS = {
+  "Accept": "application/json, text/html, */*",
+  "Accept-Language": "en",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
 };
 
-/**
- * MODIFIED: This function is now async so it can wait for your server.
- * It checks your local server first, then falls back to settings.
- */
-async function getUiToken() {
-    // 1. Attempt to pick up private cookie from your server
-    try {
-        console.log(`[ShowBox] Fetching private cookie from: ${LOCAL_COOKIE_URL}`);
-        const response = await fetch(LOCAL_COOKIE_URL);
-        if (response.ok) {
-            const serverCookie = await response.text();
-            if (serverCookie && serverCookie.trim()) {
-                console.log("[ShowBox] Using cookie from local server");
-                return serverCookie.trim();
-            }
-        }
-    } catch (e) {
-        console.log(`[ShowBox] Local server fetch failed: ${e.message}`);
-    }
+var VIDEO_HEADERS = {
+  "Accept": "*/*",
+  "Accept-Language": "en-US,en;q=0.8",
+  "Connection": "keep-alive",
+  "Range": "bytes=0-",
+  "Referer": "https://www.febbox.com",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+};
 
-    // 2. Fallback to original settings logic
-    try {
-        if (typeof global !== 'undefined' && global.SCRAPER_SETTINGS && global.SCRAPER_SETTINGS.uiToken) {
-            return String(global.SCRAPER_SETTINGS.uiToken);
-        }
-        if (typeof window !== 'undefined' && window.SCRAPER_SETTINGS && window.SCRAPER_SETTINGS.uiToken) {
-            return String(window.SCRAPER_SETTINGS.uiToken);
-        }
-    } catch (e) {
-        // ignore and fall through
-    }
-    return '';
+// HARDCODED false - always use fetch() path (Nuvio/Hermes)
+var IS_NODE = false;
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function copyObj(src) {
+  var out = {};
+  var keys = Object.keys(src);
+  for (var i = 0; i < keys.length; i++) {
+    out[keys[i]] = src[keys[i]];
+  }
+  return out;
 }
 
-function getOssGroup() {
-    try {
-        if (typeof global !== 'undefined' && global.SCRAPER_SETTINGS && global.SCRAPER_SETTINGS.ossGroup) {
-            return String(global.SCRAPER_SETTINGS.ossGroup);
+// ─── TOKEN FETCHER (SECURE) ─────────────────────────────────────────────────────
+// Fetches token from Simple HTTP Server on Android, with layered fallback
+function getFebboxToken() {
+  return fetch(LOCAL_TOKEN_URL)
+    .then(function(resp) {
+      if (!resp.ok) throw new Error("Local server error: " + resp.status);
+      return resp.text();
+    })
+    .then(function(text) {
+      var token = text.trim();
+      if (token) {
+        console.log("[SuperStream] Token successfully fetched from local server");
+        return token;
+      }
+      throw new Error("Empty token from local server");
+    })
+    .catch(function(e) {
+      console.log("[SuperStream] Local server unavailable: " + e.message);
+      // Fallback 1: global SCRAPER_SETTINGS (Nuvio settings panel)
+      try {
+        if (typeof global !== "undefined" && global.SCRAPER_SETTINGS && global.SCRAPER_SETTINGS.febboxToken) {
+          console.log("[SuperStream] Using token from global.SCRAPER_SETTINGS");
+          return String(global.SCRAPER_SETTINGS.febboxToken);
         }
-        if (typeof window !== 'undefined' && window.SCRAPER_SETTINGS && window.SCRAPER_SETTINGS.ossGroup) {
-            return String(window.SCRAPER_SETTINGS.ossGroup);
+        if (typeof window !== "undefined" && window.SCRAPER_SETTINGS && window.SCRAPER_SETTINGS.febboxToken) {
+          console.log("[SuperStream] Using token from window.SCRAPER_SETTINGS");
+          return String(window.SCRAPER_SETTINGS.febboxToken);
         }
-    } catch (e) {
-        // ignore and fall through
-    }
-    return null;
-}
-
-// Your Original Utility Functions (Untouched)
-function getQualityFromName(qualityStr) {
-    if (!qualityStr) return 'Unknown';
-    const quality = qualityStr.toUpperCase();
-    if (quality === 'ORG' || quality === 'ORIGINAL') return 'Original';
-    if (quality === '4K' || quality === '2160P') return '4K';
-    if (quality === '1440P' || quality === '2K') return '1440p';
-    if (quality === '1080P' || quality === 'FHD') return '1080p';
-    if (quality === '720P' || quality === 'HD') return '720p';
-    if (quality === '480P' || quality === 'SD') return '480p';
-    if (quality === '360P') return '360p';
-    if (quality === '240P') return '240p';
-    const match = qualityStr.match(/(\d{3,4})[pP]?/);
-    if (match) {
-        const resolution = parseInt(match[1]);
-        if (resolution >= 2160) return '4K';
-        if (resolution >= 1440) return '1440p';
-        if (resolution >= 1080) return '1080p';
-        if (resolution >= 720) return '720p';
-        if (resolution >= 480) return '480p';
-        if (resolution >= 360) return '360p';
-        return '240p';
-    }
-    return 'Unknown';
-}
-
-function formatFileSize(sizeStr) {
-    if (!sizeStr) return 'Unknown';
-    if (typeof sizeStr === 'string' && (sizeStr.includes('GB') || sizeStr.includes('MB') || sizeStr.includes('KB'))) {
-        return sizeStr;
-    }
-    if (typeof sizeStr === 'number') {
-        const gb = sizeStr / (1024 * 1024 * 1024);
-        if (gb >= 1) return `${gb.toFixed(2)} GB`;
-        const mb = sizeStr / (1024 * 1024);
-        return `${mb.toFixed(2)} MB`;
-    }
-    return sizeStr;
-}
-
-function makeRequest(url, options = {}) {
-    return fetch(url, {
-        method: options.method || 'GET',
-        headers: { ...WORKING_HEADERS, ...options.headers },
-        ...options
-    }).then(function(response) {
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        return response;
-    }).catch(function(error) {
-        console.error(`[ShowBox] Request failed for ${url}: ${error.message}`);
-        throw error;
+      } catch (ex) { /* ignore */ }
+      // Fallback 2: hardcoded FEBBOX_TOKEN (empty by default, emergency only)
+      if (FEBBOX_TOKEN) {
+        console.log("[SuperStream] Using hardcoded FEBBOX_TOKEN as emergency fallback");
+        return FEBBOX_TOKEN;
+      }
+      console.error("[SuperStream] No token found from any source!");
+      return "";
     });
 }
 
-function getTMDBDetails(tmdbId, mediaType) {
-    const endpoint = mediaType === 'tv' ? 'tv' : 'movie';
-    const url = `${TMDB_BASE_URL}/${endpoint}/${tmdbId}?api_key=${TMDB_API_KEY}`;
-    return makeRequest(url)
-        .then(function(response) { return response.json(); })
-        .then(function(data) {
-            const title = mediaType === 'tv' ? data.name : data.title;
-            const releaseDate = mediaType === 'tv' ? data.first_air_date : data.release_date;
-            const year = releaseDate ? parseInt(releaseDate.split('-')[0]) : null;
-            return { title: title, year: year };
-        })
-        .catch(function(error) {
-            console.log(`[ShowBox] TMDB lookup failed: ${error.message}`);
-            return { title: `TMDB ID ${tmdbId}`, year: null };
-        });
-}
+// ─── HTTP CLIENT ──────────────────────────────────────────────────────────────
+function httpGet(url, headers, timeoutMs) {
+  timeoutMs = timeoutMs || 15000;
+  headers   = headers   || BASE_HEADERS;
 
-function processShowBoxResponse(data, mediaInfo, mediaType, seasonNum, episodeNum) {
-    const streams = [];
-    try {
-        if (!data || !data.success || !data.versions || !Array.isArray(data.versions)) return streams;
-        let streamTitle = mediaInfo.title || 'Unknown Title';
-        if (mediaInfo.year) streamTitle += ` (${mediaInfo.year})`;
-        if (mediaType === 'tv' && seasonNum && episodeNum) {
-            streamTitle = `${mediaInfo.title || 'Unknown'} S${String(seasonNum).padStart(2, '0')}E${String(episodeNum).padStart(2, '0')}`;
-            if (mediaInfo.year) streamTitle += ` (${mediaInfo.year})`;
-        }
-        data.versions.forEach(function(version, versionIndex) {
-            if (version.links && Array.isArray(version.links)) {
-                version.links.forEach(function(link) {
-                    if (!link.url) return;
-                    const normalizedQuality = getQualityFromName(link.quality || 'Unknown');
-                    let streamName = 'ShowBox';
-                    if (data.versions.length > 1) streamName += ` V${versionIndex + 1}`;
-                    streamName += ` ${normalizedQuality}`;
-                    streams.push({
-                        name: streamName,
-                        title: streamTitle,
-                        url: link.url,
-                        quality: normalizedQuality,
-                        size: formatFileSize(link.size || version.size),
-                        provider: 'showbox',
-                        speed: link.speed || null
-                    });
-                });
+  if (IS_NODE) {
+    return new Promise(function(resolve, reject) {
+      var https  = require("https");
+      var http   = require("http");
+      var urlMod = require("url");
+      var parsed = urlMod.parse(url);
+      var isHttps = parsed.protocol === "https:";
+      var client  = isHttps ? https : http;
+      var options = {
+        hostname: parsed.hostname,
+        port:     parsed.port || (isHttps ? 443 : 80),
+        path:     parsed.path,
+        method:   "GET",
+        headers:  headers,
+        timeout:  timeoutMs
+      };
+      var req = client.request(options, function(res) {
+        var chunks = [];
+        res.on("data", function(c) { chunks.push(c); });
+        res.on("end", function() {
+          var body = Buffer.concat(chunks).toString("utf8");
+          var sc   = res.statusCode;
+          resolve({
+            ok:     sc >= 200 && sc < 400,
+            status: sc,
+            text:   function() { return Promise.resolve(body); },
+            json:   function() {
+              return new Promise(function(rs, rj) {
+                try { rs(JSON.parse(body)); } catch(e) { rj(e); }
+              });
             }
+          });
         });
-    } catch (error) {
-        console.error(`[ShowBox] Error processing response: ${error.message}`);
-    }
-    return streams;
+      });
+      req.on("error",   function(e) { reject(e); });
+      req.on("timeout", function()  { req.destroy(); reject(new Error("Timeout: " + url)); });
+      req.end();
+    });
+  } else {
+    return fetch(url, { headers: headers });
+  }
 }
 
-/**
- * MODIFIED: Changed to an async function to handle the async cookie fetch.
- */
-async function getStreams(tmdbId, mediaType = 'movie', seasonNum = null, episodeNum = null) {
-    console.log(`[ShowBox] Fetching streams for TMDB ID: ${tmdbId}`);
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function normalizeToken(token) {
+  if (!token) return "";
+  if (token.indexOf("eyJ") === 0) return "ui=" + token;
+  if (token.indexOf("ui=") === 0) return token;
+  return "ui=" + token;
+}
 
-    // Wait for the cookie to be fetched from your server
-    const cookie = await getUiToken(); 
-    
-    if (!cookie) {
-        console.error('[ShowBox] No UI token (cookie) found');
+function episodeSlug(n) {
+  return n < 10 ? "0" + n : "" + n;
+}
+
+function extractQuality(str) {
+  if (!str) return "Unknown";
+  var m = str.match(/(\d{3,4})[pP]/);
+  return m ? m[1] + "p" : str.toUpperCase();
+}
+
+function parseQualityDivs(html) {
+  var results = [];
+  var re = /<div[^>]*class="[^"]*file_quality[^"]*"[^>]*>/gi;
+  var m;
+  while ((m = re.exec(html)) !== null) {
+    var tag = m[0];
+    var uM = tag.match(/data-url="([^"]+)"/);
+    var qM = tag.match(/data-quality="([^"]+)"/);
+    if (uM && qM) {
+      results.push({
+        url: uM[1].replace(new RegExp("\\/", "g"), "/"),
+        quality: qM[1]
+      });
+    }
+  }
+  return results;
+}
+
+function parseSearchHref(html, baseUrl) {
+  var m = html.match(/class="film-name[^"]*"[^>]*>\s*<a[^>]+href="([^"]+)"/i)
+       || html.match(/<a[^>]+href="([^"]+)"[^>]*class="[^"]*film-name[^"]*"/i);
+  return m ? baseUrl + m[1] : null;
+}
+
+function parseHeadingId(html) {
+  var m = html.match(/class="heading-name[^"]*"[^>]*>[\s\S]*?<a[^>]+href="([^"]+)"/i);
+  if (!m) return null;
+  var parts = m[1].split("/");
+  var id = parseInt(parts[parts.length - 1]);
+  return isNaN(id) ? null : id;
+}
+
+// ─── IMDB LOOKUP ──────────────────────────────────────────────────────────────
+function getImdbId(tmdbId, mediaType) {
+  var url1 = TMDB_BASE + "/" + mediaType + "/" + tmdbId + "/external_ids?api_key=" + TMDB_API_KEY;
+  console.log("[SuperStream] TMDB: " + url1);
+  return httpGet(url1, BASE_HEADERS, 10000)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data && data.imdb_id) {
+        console.log("[SuperStream] IMDB ID: " + data.imdb_id);
+        return data.imdb_id;
+      }
+      var url2 = TMDB_BASE + "/" + mediaType + "/" + tmdbId + "?api_key=" + TMDB_API_KEY + "&language=en-US";
+      return httpGet(url2, BASE_HEADERS, 10000)
+        .then(function(r2) { return r2.json(); })
+        .then(function(d2) {
+          if (d2 && d2.imdb_id) {
+            console.log("[SuperStream] IMDB ID fallback: " + d2.imdb_id);
+            return d2.imdb_id;
+          }
+          return null;
+        });
+    })
+    .catch(function(e) {
+      console.log("[SuperStream] getImdbId error: " + e.message);
+      return null;
+    });
+}
+
+// ─── SUPERSTREAM API ──────────────────────────────────────────────────────────
+function searchSuperstream(imdbId) {
+  var url = FOURTH_API + "/search?keyword=" + encodeURIComponent(imdbId);
+  console.log("[SuperStream] Search: " + url);
+  return httpGet(url, BASE_HEADERS, 10000)
+    .then(function(res) {
+      if (!res.ok) return null;
+      return res.text();
+    })
+    .then(function(html) {
+      if (!html) return null;
+      var href = parseSearchHref(html, FOURTH_API);
+      if (!href) { console.log("[SuperStream] film-name href not found"); return null; }
+      return httpGet(href, BASE_HEADERS, 10000)
+        .then(function(r2) {
+          if (!r2.ok) return null;
+          return r2.text();
+        })
+        .then(function(h2) {
+          return h2 ? parseHeadingId(h2) : null;
+        });
+    })
+    .catch(function(e) {
+      console.log("[SuperStream] searchSuperstream error: " + e.message);
+      return null;
+    });
+}
+
+function getShareKey(mediaId, type) {
+  var url = FOURTH_API + "/index/share_link?id=" + mediaId + "&type=" + type;
+  console.log("[SuperStream] share_link: " + url);
+  return httpGet(url, BASE_HEADERS, 10000)
+    .then(function(res) {
+      if (!res.ok) return null;
+      return res.json();
+    })
+    .then(function(data) {
+      var link = data && data.data && data.data.link ? data.data.link : null;
+      if (!link) return null;
+      var parts = link.split("/");
+      return parts[parts.length - 1] || null;
+    })
+    .catch(function(e) {
+      console.log("[SuperStream] getShareKey error: " + e.message);
+      return null;
+    });
+}
+
+function getFileList(shareKey, parentId, page) {
+  page = page || 1;
+  var url = THIRD_API + "/file/file_share_list?share_key=" + shareKey;
+  if (parentId) url += "&parent_id=" + parentId + "&page=" + page;
+  return httpGet(url, BASE_HEADERS, 10000)
+    .then(function(res) {
+      if (!res.ok) return null;
+      return res.json();
+    })
+    .then(function(data) {
+      return data && data.data ? data.data : null;
+    })
+    .catch(function(e) {
+      console.log("[SuperStream] getFileList error: " + e.message);
+      return null;
+    });
+}
+
+function getVideoQualities(fid, shareKey, token) {
+  var cookieHeader = normalizeToken(token);
+  var url = THIRD_API + "/console/video_quality_list?fid=" + fid + "&share_key=" + shareKey;
+  var hdrs = copyObj(BASE_HEADERS);
+  if (cookieHeader) hdrs["Cookie"] = cookieHeader;
+  return httpGet(url, hdrs, 12000)
+    .then(function(res) {
+      if (!res.ok) return null;
+      return res.json();
+    })
+    .then(function(data) {
+      var h = data && data.html ? data.html : "";
+      return h ? parseQualityDivs(h) : [];
+    })
+    .catch(function(e) {
+      console.log("[SuperStream] getVideoQualities error: " + e.message);
+      return [];
+    });
+}
+
+// ─── MAIN getStreams ───────────────────────────────────────────────────────────
+// Starts with getFebboxToken() for token security
+// Pure Promise chains - ZERO async/await - 100% Hermes compatible
+function getStreams(tmdbId, mediaType, season, episode) {
+  var _shareKey = null;
+
+  // FIRST STEP: Fetch token from local server before anything else
+  return getFebboxToken()
+    .then(function(fetchedToken) {
+      var token = fetchedToken;
+      if (!token) {
+        console.error("[SuperStream] No token available, aborting getStreams");
         return [];
-    }
+      }
 
-    const ossGroup = getOssGroup();
+      return getImdbId(String(tmdbId), mediaType)
 
-    // Carry on with original logic using the cookie we just got
-    return getTMDBDetails(tmdbId, mediaType)
-        .then(function(mediaInfo) {
-            let apiUrl;
-            if (mediaType === 'tv' && seasonNum && episodeNum) {
-                apiUrl = ossGroup 
-                    ? `${SHOWBOX_API_BASE}/tv/${tmdbId}/oss=${ossGroup}/${seasonNum}/${episodeNum}?cookie=${encodeURIComponent(cookie)}`
-                    : `${SHOWBOX_API_BASE}/tv/${tmdbId}/${seasonNum}/${episodeNum}?cookie=${encodeURIComponent(cookie)}`;
-            } else {
-                apiUrl = `${SHOWBOX_API_BASE}/movie/${tmdbId}?cookie=${encodeURIComponent(cookie)}`;
-            }
-
-            return makeRequest(apiUrl)
-                .then(function(response) { return response.json(); })
-                .then(function(data) {
-                    const streams = processShowBoxResponse(data, mediaInfo, mediaType, seasonNum, episodeNum);
-                    streams.sort(function(a, b) {
-                        const qualityOrder = { 'Original': 6, '4K': 5, '1440p': 4, '1080p': 3, '720p': 2, '480p': 1, '360p': 0, '240p': -1, 'Unknown': -2 };
-                        return (qualityOrder[b.quality] || -2) - (qualityOrder[a.quality] || -2);
-                    });
-                    return streams;
-                });
+        .then(function(imdbId) {
+          if (!imdbId) return Promise.reject(new Error("IMDB ID not found"));
+          return searchSuperstream(imdbId);
         })
-        .catch(function(error) {
-            console.error(`[ShowBox] Error in getStreams: ${error.message}`);
-            return [];
+
+        .then(function(mediaId) {
+          if (!mediaId) return Promise.reject(new Error("Media ID not found"));
+          var type = (mediaType === "tv") ? 2 : 1;
+          return getShareKey(mediaId, type);
+        })
+
+        .then(function(shareKey) {
+          if (!shareKey) return Promise.reject(new Error("Share key not found"));
+          _shareKey = shareKey;
+          return getFileList(shareKey, null, 1);
+        })
+
+        .then(function(data) {
+          if (!data) return [];
+          var fileList = data.file_list || [];
+          if (!fileList.length) return [];
+
+          if (mediaType === "tv" && season && episode) {
+            var seasonStr  = episodeSlug(season);
+            var episodeStr = episodeSlug(episode);
+            var seasonFolders = fileList.filter(function(f) {
+              return f.is_dir && f.file_name &&
+                (f.file_name.toLowerCase().indexOf("season " + parseInt(seasonStr)) !== -1 ||
+                 f.file_name.toLowerCase().indexOf("s" + seasonStr) !== -1);
+            });
+            if (!seasonFolders.length) {
+              seasonFolders = fileList.filter(function(f) { return f.is_dir; });
+            }
+            if (!seasonFolders.length) return [];
+
+            return getFileList(_shareKey, seasonFolders[0].fid, 1)
+              .then(function(epData) {
+                if (!epData) return [];
+                var epList = epData.file_list || [];
+                var epFile = epList.filter(function(f) {
+                  if (f.is_dir) return false;
+                  var name = (f.file_name || "").toLowerCase();
+                  return name.indexOf("e" + episodeStr) !== -1 ||
+                         name.indexOf("ep" + episodeStr) !== -1 ||
+                         name.indexOf("episode " + parseInt(episodeStr)) !== -1;
+                });
+                if (!epFile.length) epFile = epList.filter(function(f) { return !f.is_dir; });
+                if (!epFile.length) return [];
+                return getVideoQualities(epFile[0].fid, _shareKey, token);
+              });
+          } else {
+            var videoFiles = fileList.filter(function(f) { return !f.is_dir; });
+            if (!videoFiles.length) return [];
+            return getVideoQualities(videoFiles[0].fid, _shareKey, token);
+          }
+        })
+
+        .then(function(qualities) {
+          if (!qualities || !qualities.length) return [];
+          return qualities.map(function(q) {
+            return {
+              name:     "SuperStream " + extractQuality(q.quality),
+              url:      q.url,
+              quality:  extractQuality(q.quality),
+              provider: "superstream",
+              headers:  VIDEO_HEADERS
+            };
+          });
+        })
+
+        .catch(function(e) {
+          console.log("[SuperStream] getStreams error: " + e.message);
+          return [];
         });
+    });
 }
 
-// Exporting
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { getStreams };
+// ─── EXPORT ───────────────────────────────────────────────────────────────────
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { getStreams: getStreams };
 } else {
-    global.ShowBoxScraperModule = { getStreams };
+  global.getStreams = getStreams;
 }
