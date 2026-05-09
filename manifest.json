@@ -7,7 +7,7 @@
       "name": "ShowBox Cookie-1",
       "description": "Exclusive Scraper - Enter Token in Settings",
       "version": "2.0.0",
-      "author": "Nuvio Team",
+      "author": "Xyr0nX/Antonio Ante",
       "supportedTypes": ["movie", "tv"],
       "filename": "providers/showbox.js",
       "enabled": true,
@@ -27,7 +27,7 @@
       "name": "ShowBox Cookie-2",
       "description": "Exclusive Scraper - Enter Token in Settings",
       "version": "2.0.0",
-      "author": "Nuvio Team",
+      "author": "Xyr0nX/Antonio Ante",
       "supportedTypes": ["movie", "tv"],
       "filename": "providers/showbox2.js",
       "enabled": true,
@@ -39,6 +39,26 @@
           "name": "token_box",
           "type": "text",
           "label": "Enter Cookie Token"
+        }
+      ]
+    },
+    {
+      "id": "gram-cinema-v20-final",
+      "name": "GramCinema",
+      "description": "Dynamic Premium Scraper - Uses Integrated Proxy Bypass",
+      "version": "2.0.0",
+      "author": "Xyr0nX/Antonio Ante",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/gramcinema.js",
+      "enabled": true,
+      "formats": ["mp4", "mkv", "m3u8"],
+      "logo": "https://i.postimg.cc/WbNPW7Jv/gramcinema.png",
+      "contentLanguage": ["en"],
+      "settings": [
+        {
+          "name": "token_box",
+          "type": "text",
+          "label": "Enter Account Token"
         }
       ]
     }
