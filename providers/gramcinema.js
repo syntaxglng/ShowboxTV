@@ -8,7 +8,7 @@
 // Replace this IP with your Android phone's local IP running Simple HTTP Server
 // How to check: Settings -> WiFi -> network name -> IP Address
 // Store token in "token.txt" file in the folder served by Simple HTTP Server
-var LOCAL_TOKEN_URL = "http://192.168.100.77:8080/cookie5.txt";
+var LOCAL_TOKEN_URL = "http://10.1.10.1:8080/cookie5.txt";
 
 // ─── TOKEN FETCHER (SECURE) ─────────────────────────────────────────────────────
 function getToken() {
