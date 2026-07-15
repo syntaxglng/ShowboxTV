@@ -17,7 +17,7 @@ var FEBBOX_TOKEN = "";
 // ─── LOCAL SERVER CONFIGURATION ─────────────────────────────────────────────────
 // Replace this IP with your Android phone's local IP running Simple HTTP Server
 // How to check IP: Settings -> WiFi -> network name -> IP Address
-var LOCAL_TOKEN_URL = "http://10.1.10.1:8080/cookie4.txt";
+var LOCAL_TOKEN_URL = "http://127.0.0.1:8080/cookie4.txt";
 
 var FOURTH_API = "https://showbox.media";
 var THIRD_API  = "https://www.febbox.com";
