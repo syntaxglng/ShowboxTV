@@ -93,7 +93,7 @@ function getFebboxToken() {
 
 // ─── HTTP CLIENT ──────────────────────────────────────────────────────────────
 function httpGet(url, headers, timeoutMs) {
-  timeoutMs = timeoutMs || 7000;
+  timeoutMs = timeoutMs || 15000;
   headers   = headers   || BASE_HEADERS;
 
   if (IS_NODE) {
