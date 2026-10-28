@@ -1,7 +1,7 @@
 "use strict";
 
 const PROVIDER_NAME = "2Peckle";
-const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
+const TMDB_API_KEY = "5a8c066499f859fdfdfea39688cce67a";
 
 // ─── LOCAL SERVER CONFIGURATION ─────────────────────────────────────────────────
 // Replace this URL with your local Simple HTTP Server address and text file name
