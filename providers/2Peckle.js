@@ -1,6 +1,6 @@
 "use strict";
 
-const PROVIDER_NAME = "2Peckle";
+const PROVIDER_NAME = "2peckle";
 const TMDB_API_KEY = "5a8c066499f859fdfdfea39688cce67a";
 
 // ─── LOCAL SERVER CONFIGURATION ─────────────────────────────────────────────────
