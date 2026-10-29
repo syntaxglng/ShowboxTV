@@ -5,7 +5,7 @@ const TMDB_API_KEY = "5a8c066499f859fdfdfea39688cce67a";
 
 // ─── LOCAL SERVER CONFIGURATION ─────────────────────────────────────────────────
 // Replace this URL with your local Simple HTTP Server address and text file name
-const LOCAL_TOKEN_URL = "http://192.168.1.244:8080/token.txt";
+const LOCAL_TOKEN_URL = "http://127.0.0.1:8080/token.txt";
 
 // Backup hardcoded auth token (Emergency Fallback)
 const FALLBACK_AUTH_TOKEN = "";
