@@ -8,7 +8,7 @@ const TMDB_API_KEY = "5a8c066499f859fdfdfea39688cce67a";
 const LOCAL_TOKEN_URL = "http://127.0.0.1:8080/token.txt";
 
 // Backup hardcoded auth token (Emergency Fallback)
-const FALLBACK_AUTH_TOKEN = "";
+const FALLBACK_AUTH_TOKEN = "Q7mHK1C6YhrlSWslRbB2kOqne2aotU5eOTruT5kHGb8";
 
 // ─── TOKEN FETCHER (SECURE) ─────────────────────────────────────────────────────
 function getAuthToken() {
